@@ -1,6 +1,7 @@
 import pygame
 from OBJ import obj
 from AGV import AGV
+import DQN
 
 class ENV():
     RED = (255, 0, 0)
@@ -34,6 +35,9 @@ class ENV():
         
         # Time
         self.time = 0
+        
+        # Use for training
+        self.state_list = []
 
     # Check the AGV is out of factory of not
     def Out_Of_Factory(self, pos):
@@ -42,15 +46,18 @@ class ENV():
     # Single Process Step
     def Run(self):  
         self.time += 1
-        self.state_list = []
+        # Use for GUI
+        info_list = []
         
-        # AGV's Positions
+        # Random Move
         if self.running_opt == 0:
             agvs_pos = []
             agvs_pos.append(self.agv1.random_move(agvs_pos))
             agvs_pos.append(self.agv2.random_move(agvs_pos))
             agvs_pos.append(self.agv3.random_move(agvs_pos))
-            
+            info_list.append(agvs_pos)
+        
+        # Deterministic Move
         if self.running_opt == 1:
             buffers_pos = [self.buffer1.pos, self.buffer2.pos, self.buffer3.pos]
             machines_pos = [self.machine1.pos, self.machine2.pos, self.machine3.pos]
@@ -58,32 +65,38 @@ class ENV():
             agvs_pos.append(self.agv1.deterministic_move(agvs_pos, buffers_pos[0], machines_pos[0]))
             agvs_pos.append(self.agv2.deterministic_move(agvs_pos, buffers_pos[1], machines_pos[1]))
             agvs_pos.append(self.agv3.deterministic_move(agvs_pos, buffers_pos[2], machines_pos[2]))
+            info_list.append(agvs_pos)
         
+        # Deep Q Network Learning
         if self.running_opt == 2:
+            self.state_list = []
             pass
         
         if self.running_opt == 3:
             pass
         
-        # AGV's position is available or not
+        # AGV's position is available or not [0, 0, 0, 0, 0, 0, 0, 0, 0] (9)
         agvs_out = []
         if self.Out_Of_Factory(self.agv1.head.pos):
             self.agv1.reset((10, 5), (255, 0, 0))
-            agvs_out.append(True)
+            agvs_out.append(1)
         else:
-            agvs_out.append(False)
+            agvs_out.append(0)
         if self.Out_Of_Factory(self.agv2.head.pos):
             self.agv2.reset((10, 10), (0, 255, 0))
-            agvs_out.append(True)
+            agvs_out.append(1)
         else:
-            agvs_out.append(False)
+            agvs_out.append(0)
         if self.Out_Of_Factory(self.agv3.head.pos):
             self.agv3.reset((10, 15), (0, 0, 255))
-            agvs_out.append(True)
+            agvs_out.append(1)
         else:
-            agvs_out.append(False)
+            agvs_out.append(0)
+            
+        self.state_list.extend(agvs_out)
+        info_list.append(agvs_out)
 
-        # AGV's Loads
+        # AGV's Loads : [0, 0, 0] (3)
         agvs_load = []
         if self.agv1.head.pos == self.buffer1.pos:
             self.agv1.get_load()
@@ -94,49 +107,74 @@ class ENV():
         agvs_load.append(self.agv1.load)
         agvs_load.append(self.agv2.load)
         agvs_load.append(self.agv3.load)
+        self.state_list.extend(agvs_load)
+        info_list.append(agvs_load)
 
-        # Machine produced product
+        # Machine produced product [0, 0, 0] (3)
         machines_product = []
         if self.agv1.head.pos == self.machine1.pos:
             if self.agv1.load:
                 self.agv1.pop_load()
                 self.machine1.produce()
-                machines_product.append(True)
+                machines_product.append(1)
                 self.products_num[0] += 1
             else:
-                machines_product.append(False)
+                machines_product.append(0)
         else:
-            machines_product.append(False)
+            machines_product.append(0)
         if self.agv2.head.pos == self.machine2.pos:
             if self.agv2.load:
                 self.agv2.pop_load()
                 self.machine2.produce()
-                machines_product.append(True)
+                machines_product.append(1)
                 self.products_num[1] += 1
             else:
-                machines_product.append(False)
+                machines_product.append(0)
         else:
-            machines_product.append(False)
+            machines_product.append(0)
         if self.agv3.head.pos == self.machine3.pos:
             if self.agv3.load:
                 self.agv3.pop_load()
                 self.machine3.produce()
-                machines_product.append(True)
+                machines_product.append(1)
                 self.products_num[2] += 1
             else:
-                machines_product.append(False)
+                machines_product.append(0)
         else:
-            machines_product.append(False)
+            machines_product.append(1)
+        self.state_list.extend(machines_product)
+        info_list.append(machines_product)
         
-        # POS : 0
-        self.state_list.append(agvs_pos)
-        # OUT : 1
-        self.state_list.append(agvs_out)
-        # LOAD : 2
-        self.state_list.append(agvs_load)
-        # PRODUCT : 3
-        self.state_list.append(machines_product)
-        return self.state_list
+        # (24)
+        pos_relation = []
+        pos_relation.append(self.agv1.head.pos[0] < self.machine1.pos[0])
+        pos_relation.append(self.agv1.head.pos[0] > self.machine1.pos[0])
+        pos_relation.append(self.agv1.head.pos[1] < self.machine1.pos[1])
+        pos_relation.append(self.agv1.head.pos[1] > self.machine1.pos[1])
+        pos_relation.append(self.agv2.head.pos[0] < self.machine2.pos[0])
+        pos_relation.append(self.agv2.head.pos[0] > self.machine2.pos[0])
+        pos_relation.append(self.agv2.head.pos[1] < self.machine2.pos[1])
+        pos_relation.append(self.agv2.head.pos[1] > self.machine2.pos[1])
+        pos_relation.append(self.agv3.head.pos[0] < self.machine3.pos[0])
+        pos_relation.append(self.agv3.head.pos[0] > self.machine3.pos[0])
+        pos_relation.append(self.agv3.head.pos[1] < self.machine3.pos[1])
+        pos_relation.append(self.agv3.head.pos[1] > self.machine3.pos[1])
+        
+        pos_relation.append(self.agv1.head.pos[0] < self.buffer1.pos[0])
+        pos_relation.append(self.agv1.head.pos[0] > self.buffer1.pos[0])
+        pos_relation.append(self.agv1.head.pos[1] < self.buffer1.pos[1])
+        pos_relation.append(self.agv1.head.pos[1] > self.buffer1.pos[1])
+        pos_relation.append(self.agv2.head.pos[0] < self.buffer2.pos[0])
+        pos_relation.append(self.agv2.head.pos[0] > self.buffer2.pos[0])
+        pos_relation.append(self.agv2.head.pos[1] < self.buffer2.pos[1])
+        pos_relation.append(self.agv2.head.pos[1] > self.buffer2.pos[1])
+        pos_relation.append(self.agv3.head.pos[0] < self.buffer3.pos[0])
+        pos_relation.append(self.agv3.head.pos[0] > self.buffer3.pos[0])
+        pos_relation.append(self.agv3.head.pos[1] < self.buffer3.pos[1])
+        pos_relation.append(self.agv3.head.pos[1] > self.buffer3.pos[1])
+        self.state_list.extend(pos_relation)
+        
+        return info_list
         
     def Get_Obj(self):
         return [self.agv1, self.agv2, self.agv3, self.buffer1, self.buffer2, 

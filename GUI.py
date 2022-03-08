@@ -27,36 +27,36 @@ class GUI():
 
         # menu (left side)
         self.menu = tk.Frame(self.win_frame, width = 200, height = 516, highlightbackground = '#595959', highlightthickness=2)
-        self.menu_label = tk.Label(self.menu, text = 'Control Pannel', font = ("Console", "12"))
+        self.menu_label = tk.Label(self.menu, text = 'Control Pannel', font = ("Helvetica", "12"))
         self.Start_button = tk.Button(self.menu, text= "Start", bg = '#728f96', 
-                                    font = ("Console", "12"), activebackground='#d45f5f')
+                                    font = ("Helvetica", "12"), activebackground='#d45f5f')
         self.Start_button.bind("<Button-1>", self.start_env)
         
         self.Stop_button = tk.Button(self.menu, text= "Stop", bg = '#728f96', 
-                                    font = ("Console", "12"), activebackground='#d45f5f')
+                                    font = ("Helvetica", "12"), activebackground='#d45f5f')
         self.Stop_button.bind("<Button-1>", self.stop_env)
         
-        self.Reset_button = tk.Button(self.menu, text = "Reset", font = ("Console", "12"), 
+        self.Reset_button = tk.Button(self.menu, text = "Reset", font = ("Helvetica", "12"), 
                                     bg = '#728f96', activebackground='#d45f5f')
         self.Reset_button.bind("<Button-1>", self.reset_env)
         
-        self.Clear_button = tk.Button(self.menu, text = "Clear Log", font = ("Console", "12"), 
+        self.Clear_button = tk.Button(self.menu, text = "Clear Log", font = ("Helvetica", "12"), 
                                     bg = '#728f96', activebackground='#d45f5f')
         self.Clear_button.bind("<Button-1>", self.clear_log)
         
         # Setting(Middle side)
         self.setting = tk.Frame(self.win_frame, width = 200, height = 516, highlightbackground = '#595959', highlightthickness=2)   
-        self.setting_label = tk.Label(self.setting, text = 'Setting Pannel', font = ("Console", "12"))   
+        self.setting_label = tk.Label(self.setting, text = 'Setting Pannel', font = ("Helvetica", "12"))   
         
         # Speed setting
         self.speed_var = tk.IntVar()
-        self.speed_label = tk.Label(self.setting, text = 'Simulation Speed', font = ("Console", "10"))
+        self.speed_label = tk.Label(self.setting, text = 'Simulation Speed', font = ("Helvetica", "10"))
         self.speed_scale = tk.Scale(self.setting, variable = self.speed_var, orient="horizontal", state = 'active',
                                     showvalue = True, from_ = 1000, to = 10, length = 200,
                                     highlightbackground = '#728f96', activebackground = '#728f96')
         
         # AGV Algorithm Setting
-        self.algorithm_label = tk.Label(self.setting, text = 'Path Finding Algorithm', font = ("Console", "10"))
+        self.algorithm_label = tk.Label(self.setting, text = 'Path Finding Algorithm', font = ("Helvetica", "10"))
         self.algorithm_box = ttk.Combobox(self.setting, 
                                     values=["Radom Move", "Deterministic", "Deep Q Network", "DQN Learned model"], state = 'readonly')
         self.algorithm_box.current(0)
@@ -64,7 +64,7 @@ class GUI():
         
         # State (Right side)
         self.state = tk.Frame(self.win_frame, width = 400, height = 516 / 2, highlightbackground = '#595959', highlightthickness=2)   
-        self.state_label = tk.Label(self.state, text = 'State Pannel', font = ("Console", "12"))  
+        self.state_label = tk.Label(self.state, text = 'State Pannel', font = ("Helvetica", "12"))  
         
         self.state_scroll = tk.Scrollbar(self.state, orient='vertical')
         self.state_box = tk.Listbox(self.state, yscrollcommand = self.state_scroll.set, width = 400, height = 400)
@@ -72,7 +72,7 @@ class GUI():
         
         # Log (Right side)
         self.log = tk.Frame(self.win_frame, width = 400, height = 516 / 2, highlightbackground = '#595959', highlightthickness=2)   
-        self.log_label = tk.Label(self.log, text = 'Log Pannel', font = ("Console", "12")) 
+        self.log_label = tk.Label(self.log, text = 'Log Pannel', font = ("Helvetica", "12")) 
         
         self.log_scroll = tk.Scrollbar(self.log, orient='vertical')
         self.log_box = tk.Listbox(self.log, yscrollcommand = self.log_scroll.set, width = 400, height = 400)

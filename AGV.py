@@ -14,7 +14,7 @@ class AGV():
         self.dirny = 1
         
         # Check the AGV has load or not
-        self.load = False
+        self.load = 0
     
     # Random move
     def random_move(self, others_pos_list = [], buffer_pos = (0, 0), machine_pos = (0, 0)):        
@@ -122,6 +122,13 @@ class AGV():
         self.head.move(self.dirnx, self.dirny)
         return self.head.pos
     
+    def dqn_move(self):
+        if (self.dirnx) == 0 and (self.dirny == 0):  result = [1, 0, 0, 0]
+        if (self.dirnx) == 1 and (self.dirny == 0):  result = [0, 1, 0, 0]
+        if (self.dirnx) == 0 and (self.dirny == 1):  result = [0, 0, 1, 0]
+        if (self.dirnx) == 1 and (self.dirny == 1):  result = [0, 0, 0, 1]
+        return result
+    
     def reset(self, pos, color):
         # Color of AGV
         self.head = obj(pos, 1, 0, color)
@@ -132,8 +139,8 @@ class AGV():
         self.head.draw(surface, True)
         
     def get_load(self):
-        self.load = True
+        self.load = 1
         
     def pop_load(self):
-        self.load = False
+        self.load = 0
         return True
