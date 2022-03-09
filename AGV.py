@@ -122,12 +122,50 @@ class AGV():
         self.head.move(self.dirnx, self.dirny)
         return self.head.pos
     
-    def dqn_move(self):
-        if (self.dirnx) == 0 and (self.dirny == 0):  result = [1, 0, 0, 0]
-        if (self.dirnx) == 1 and (self.dirny == 0):  result = [0, 1, 0, 0]
-        if (self.dirnx) == 0 and (self.dirny == 1):  result = [0, 0, 1, 0]
-        if (self.dirnx) == 1 and (self.dirny == 1):  result = [0, 0, 0, 1]
-        return result
+    def dqn_move(self, move, others_pos_list = []):        
+        keys = 1
+        if move == [1, 0, 0, 0]:
+            keys = 1
+        if move == [0, 1, 0, 0]:
+            keys = 2
+        if move == [0, 0, 1, 0]:
+            keys = 3
+        if move == [0, 0, 0, 1]:
+            keys = 4
+            
+        # Move Left
+        if keys == 1:
+            self.dirnx = -1
+            self.dirny = 0
+            self.turns[self.head.pos[:]] = [self.dirnx, self.dirny]
+        
+        # Move Right
+        elif keys == 2:
+            self.dirnx = 1
+            self.dirny = 0
+            self.turns[self.head.pos[:]] = [self.dirnx, self.dirny]
+        
+        # Move Up
+        elif keys == 3:
+            self.dirny = -1
+            self.dirnx = 0
+            self.turns[self.head.pos[:]] = [self.dirnx, self.dirny]
+        
+        # Move Down
+        elif keys == 4:
+            self.dirny = 1
+            self.dirnx = 0
+            self.turns[self.head.pos[:]] = [self.dirnx, self.dirny]
+        
+        next_pos = self.head.pos[0] + self.dirnx, self.head.pos[1] + self.dirny
+        
+        if others_pos_list:
+            for pos in others_pos_list:
+                if next_pos == pos:
+                    return self.head.pos
+
+        self.head.move(self.dirnx, self.dirny)
+        return self.head.pos
     
     def reset(self, pos, color):
         # Color of AGV

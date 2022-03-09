@@ -38,6 +38,13 @@ class ENV():
         
         # Use for training
         self.state_list = []
+        self.update_state()
+        
+        # DQN trainer
+        self.trainer = DQN.QTrainer(DQN.Qnet(len(self.state_list), 256, 12), 0.001, 0.8)
+        
+        # episodes
+        self.episode = 100
 
     # Check the AGV is out of factory of not
     def Out_Of_Factory(self, pos):
@@ -69,13 +76,23 @@ class ENV():
         
         # Deep Q Network Learning
         if self.running_opt == 2:
-            self.state_list = []
-            pass
+            if self.time > self.episode:
+                self.time = 1
+                self.Reset()
+                self.update_state()
+            state = self.state_list
+            action = self.trainer.get_action(self.state_list)
+            
+            agvs_pos = []
+            agvs_pos.append(self.agv1.dqn_move(action[0:4], agvs_pos))
+            agvs_pos.append(self.agv2.dqn_move(action[4:8], agvs_pos))
+            agvs_pos.append(self.agv3.dqn_move(action[8:12], agvs_pos))
+            info_list.append(agvs_pos)
         
         if self.running_opt == 3:
             pass
         
-        # AGV's position is available or not [0, 0, 0, 0, 0, 0, 0, 0, 0] (9)
+        # AGV's position is available or not
         agvs_out = []
         if self.Out_Of_Factory(self.agv1.head.pos):
             self.agv1.reset((10, 5), (255, 0, 0))
@@ -92,11 +109,9 @@ class ENV():
             agvs_out.append(1)
         else:
             agvs_out.append(0)
-            
-        self.state_list.extend(agvs_out)
         info_list.append(agvs_out)
 
-        # AGV's Loads : [0, 0, 0] (3)
+        # AGV's Loads
         agvs_load = []
         if self.agv1.head.pos == self.buffer1.pos:
             self.agv1.get_load()
@@ -107,10 +122,9 @@ class ENV():
         agvs_load.append(self.agv1.load)
         agvs_load.append(self.agv2.load)
         agvs_load.append(self.agv3.load)
-        self.state_list.extend(agvs_load)
         info_list.append(agvs_load)
 
-        # Machine produced product [0, 0, 0] (3)
+        # Machine produced product
         machines_product = []
         if self.agv1.head.pos == self.machine1.pos:
             if self.agv1.load:
@@ -142,10 +156,55 @@ class ENV():
                 machines_product.append(0)
         else:
             machines_product.append(1)
-        self.state_list.extend(machines_product)
         info_list.append(machines_product)
         
-        # (24)
+        if self.running_opt == 2:
+            self.update_state()
+            next_state = self.state_list
+            reward = self.get_reward()
+            self.trainer.train_step(state, action, reward, next_state)
+        
+        return info_list
+        
+    def Get_Obj(self):
+        return [self.agv1, self.agv2, self.agv3, self.buffer1, self.buffer2, 
+                self.buffer3, self.machine1, self.machine2, self.machine3] 
+        
+    def Reset(self):
+        self.agv1 = AGV((10, 5), self.RED)
+        self.agv2 = AGV((10, 10), self.GREEN)
+        self.agv3 = AGV((10, 15), self.BLUE)
+        
+        self.buffer1 = obj((3, 5), color = self.RED)
+        self.buffer2 = obj((3, 10), color = self.GREEN)
+        self.buffer3 = obj((3, 15), color = self.BLUE)
+        
+        self.machine1 = obj((17, 5), color = self.RED)
+        self.machine2 = obj((17, 10), color = self.GREEN)
+        self.machine3 = obj((17, 15), color = self.BLUE)
+        self.products_num = [0, 0, 0]
+        self.state_list = []
+        return
+    
+    def Get_product(self):
+        return self.products_num
+    
+    def Get_throuput(self):
+        product_num = 0
+        for product in self.products_num:
+            product_num += product
+            
+        return product_num / self.time
+    
+    # Update state for training
+    def update_state(self):
+        self.state_list = []     
+        self.state_list.extend([self.Out_Of_Factory(self.agv1.head.pos), 
+                                self.Out_Of_Factory(self.agv2.head.pos), self.Out_Of_Factory(self.agv3.head.pos)])
+        self.state_list.extend([self.agv1.load, self.agv2.load, self.agv3.load])
+        self.state_list.extend([((self.agv1.head.pos == self.machine1.pos) and self.agv1.load), 
+                                ((self.agv2.head.pos == self.machine2.pos) and self.agv2.load), 
+                                ((self.agv3.head.pos == self.machine3.pos) and self.agv3.load)])
         pos_relation = []
         pos_relation.append(self.agv1.head.pos[0] < self.machine1.pos[0])
         pos_relation.append(self.agv1.head.pos[0] > self.machine1.pos[0])
@@ -174,32 +233,20 @@ class ENV():
         pos_relation.append(self.agv3.head.pos[1] > self.buffer3.pos[1])
         self.state_list.extend(pos_relation)
         
-        return info_list
-        
-    def Get_Obj(self):
-        return [self.agv1, self.agv2, self.agv3, self.buffer1, self.buffer2, 
-                self.buffer3, self.machine1, self.machine2, self.machine3] 
-        
-    def Reset(self):
-        self.agv1 = AGV((10, 5), self.RED)
-        self.agv2 = AGV((10, 10), self.GREEN)
-        self.agv3 = AGV((10, 15), self.BLUE)
-        
-        self.buffer1 = obj((3, 5), color = self.RED)
-        self.buffer2 = obj((3, 10), color = self.GREEN)
-        self.buffer3 = obj((3, 15), color = self.BLUE)
-        
-        self.machine1 = obj((17, 5), color = self.RED)
-        self.machine2 = obj((17, 10), color = self.GREEN)
-        self.machine3 = obj((17, 15), color = self.BLUE)
+        for x in range(len(self.state_list)):
+            if(self.state_list[x]):
+                self.state_list[x] = 0
+            else:
+                self.state_list[x] = 1
         return
     
-    def Get_product(self):
-        return self.products_num
-    
-    def Get_throuput(self):
-        product_num = 0
-        for product in self.products_num:
-            product_num += product
-            
-        return product_num / self.time
+    def get_reward(self):
+        reward = 0
+        if (self.agv1.head.pos == self.machine1.pos) and self.agv1.load:
+            reward += 1
+        if (self.agv2.head.pos == self.machine2.pos) and self.agv2.load:
+            reward += 1
+        if (self.agv3.head.pos == self.machine3.pos) and self.agv3.load:
+            reward += 1
+        return [reward]
+        
