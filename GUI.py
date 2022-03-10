@@ -52,7 +52,7 @@ class GUI():
         self.speed_var = tk.IntVar()
         self.speed_label = tk.Label(self.setting, text = 'Simulation Speed', font = ("Helvetica", "10"))
         self.speed_scale = tk.Scale(self.setting, variable = self.speed_var, orient="horizontal", state = 'active',
-                                    showvalue = True, from_ = 1000, to = 10, length = 200,
+                                    showvalue = True, from_ = 1000, to = 1, length = 200,
                                     highlightbackground = '#728f96', activebackground = '#728f96')
         
         # AGV Algorithm Setting

@@ -1,7 +1,9 @@
+from decimal import DecimalTuple
 import pygame
 from OBJ import obj
 from AGV import AGV
 import DQN
+import numpy as np
 
 class ENV():
     RED = (255, 0, 0)
@@ -44,7 +46,19 @@ class ENV():
         self.trainer = DQN.QTrainer(DQN.Qnet(len(self.state_list), 256, 12), 0.001, 0.8)
         
         # episodes
-        self.episode = 100
+        self.episode = 1000
+        
+        # n_game
+        self.n_game = 0
+        
+        # highest reward
+        self.high_reward = 0
+        
+        # previous product number
+        self.prev_products_num = 0
+        
+        # whole_reward
+        self.whole_reward = 0
 
     # Check the AGV is out of factory of not
     def Out_Of_Factory(self, pos):
@@ -76,10 +90,7 @@ class ENV():
         
         # Deep Q Network Learning
         if self.running_opt == 2:
-            if self.time > self.episode:
-                self.time = 1
-                self.Reset()
-                self.update_state()
+            self.update_state()
             state = self.state_list
             action = self.trainer.get_action(self.state_list)
             
@@ -162,7 +173,24 @@ class ENV():
             self.update_state()
             next_state = self.state_list
             reward = self.get_reward()
-            self.trainer.train_step(state, action, reward, next_state)
+            
+            # train short memory
+            self.trainer.train_short_memory(state, action, reward, next_state, False)
+            
+            # memorize
+            self.trainer.remember(state, action, reward, next_state, False)
+            
+            if self.time > self.episode:
+                self.time = 1
+                self.n_game += 1
+                self.trainer.train_long_memory()
+                # new High score 
+                if(self.whole_reward > self.high_reward):
+                    self.high_reward = self.whole_reward
+                    self.trainer.model.save()
+                print('Game:', self.n_game,'Score:', self.whole_reward,'Record:', self.high_reward)
+                self.Reset()
+                self.update_state()                  
         
         return info_list
         
@@ -241,12 +269,8 @@ class ENV():
         return
     
     def get_reward(self):
-        reward = 0
-        if (self.agv1.head.pos == self.machine1.pos) and self.agv1.load:
-            reward += 1
-        if (self.agv2.head.pos == self.machine2.pos) and self.agv2.load:
-            reward += 1
-        if (self.agv3.head.pos == self.machine3.pos) and self.agv3.load:
-            reward += 1
-        return [reward]
+        reward = self.products_num[0] + self.products_num[1] + self.products_num[2] - self.prev_products_num
+        self.prev_products_num = self.products_num[0] + self.products_num[1] + self.products_num[2] 
+        self.whole_reward += reward
+        return reward
         
