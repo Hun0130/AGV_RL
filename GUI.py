@@ -1,3 +1,4 @@
+from distutils.log import fatal
 from select import select
 import AGV
 
@@ -6,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk
 import os
 import platform
-import time
+from tkinter import font
 
 class GUI():
     def __init__(self, env):
@@ -20,55 +21,61 @@ class GUI():
         self.root.resizable(False, False)
         self.root.configure(background='#000000')
         self.running = False
-
+        
+        # font option
+        self.font_style1 = font.Font(family="fixed", size = 14)
+        self.font_style2 = font.Font(family="fixed", size = 10)
+        
         # Large Frame
         self.win_frame = tk.Frame(self.root, width = self.width + 300, height = self.height, 
                                 highlightbackground = '#595959', highlightthickness = 2)
 
         # menu (left side)
         self.menu = tk.Frame(self.win_frame, width = 200, height = 516, highlightbackground = '#595959', highlightthickness=2)
-        self.menu_label = tk.Label(self.menu, text = 'Control Pannel', font = ("Helvetica", "12"))
+        self.menu_label = tk.Label(self.menu, text = 'Control Pannel', font = self.font_style1)
         self.Start_button = tk.Button(self.menu, text= "Start", bg = '#728f96', 
-                                    font = ("Helvetica", "12"), activebackground='#d45f5f')
+                                    font = self.font_style1, activebackground='#d45f5f')
         self.Start_button.bind("<Button-1>", self.start_env)
         
         self.Stop_button = tk.Button(self.menu, text= "Stop", bg = '#728f96', 
-                                    font = ("Helvetica", "12"), activebackground='#d45f5f')
+                                    font = self.font_style1, activebackground='#d45f5f')
         self.Stop_button.bind("<Button-1>", self.stop_env)
         
-        self.Reset_button = tk.Button(self.menu, text = "Reset", font = ("Helvetica", "12"), 
+        self.Reset_button = tk.Button(self.menu, text = "Reset", font = self.font_style1, 
                                     bg = '#728f96', activebackground='#d45f5f')
         self.Reset_button.bind("<Button-1>", self.reset_env)
         
-        self.Clear_button = tk.Button(self.menu, text = "Clear Log", font = ("Helvetica", "12"), 
+        self.Clear_button = tk.Button(self.menu, text = "Clear Log", font = self.font_style1, 
                                     bg = '#728f96', activebackground='#d45f5f')
         self.Clear_button.bind("<Button-1>", self.clear_log)
         
-        self.Learn_button = tk.Button(self.menu, text = "Text Mode", font = ("Helvetica", "12"), 
+        self.Learn_button = tk.Button(self.menu, text = "Text Mode", font = self.font_style1, 
                                     bg = '#728f96', activebackground='#d45f5f')
         self.Learn_button.bind("<Button-1>", self.training)
         
         # Setting(Middle side)
         self.setting = tk.Frame(self.win_frame, width = 200, height = 516, highlightbackground = '#595959', highlightthickness=2)   
-        self.setting_label = tk.Label(self.setting, text = 'Setting Pannel', font = ("Helvetica", "12"))   
+        self.setting_label = tk.Label(self.setting, text = 'Setting Pannel', font = self.font_style1)   
         
         # Speed setting
         self.speed_var = tk.IntVar()
-        self.speed_label = tk.Label(self.setting, text = 'Simulation Speed', font = ("Helvetica", "10"))
+        self.speed_label = tk.Label(self.setting, text = 'Simulation Speed', font = self.font_style2)
         self.speed_scale = tk.Scale(self.setting, variable = self.speed_var, orient="horizontal", state = 'active',
                                     showvalue = True, from_ = 1000, to = 1, length = 200,
-                                    highlightbackground = '#728f96', activebackground = '#728f96')
+                                    highlightbackground = '#728f96', activebackground = '#728f96', font=self.font_style2)
+        self.speed_scale.set(1000)
         
         # AGV Algorithm Setting
-        self.algorithm_label = tk.Label(self.setting, text = 'Path Finding Algorithm', font = ("Helvetica", "10"))
+        self.algorithm_label = tk.Label(self.setting, text = 'Path Finding Algorithm', font = self.font_style2)
         self.algorithm_box = ttk.Combobox(self.setting, 
-                                    values=["Radom Move", "Deterministic", "Deep Q Network", "DQN Learned model"], state = 'readonly')
+                                    values=["Radom Move", "Deterministic", "Deep Q Network", "DQN Learned model"], state = 'readonly',
+                                    font=self.font_style2)
         self.algorithm_box.current(0)
         self.algorithm_box.bind("<<ComboboxSelected>>", self.algorithm_changed)
         
         # State (Right side)
         self.state = tk.Frame(self.win_frame, width = 400, height = 516 / 2, highlightbackground = '#595959', highlightthickness=2)   
-        self.state_label = tk.Label(self.state, text = 'State Pannel', font = ("Helvetica", "12"))  
+        self.state_label = tk.Label(self.state, text = 'State Pannel', font = self.font_style1)  
         
         self.state_scroll = tk.Scrollbar(self.state, orient='vertical')
         self.state_box = tk.Listbox(self.state, yscrollcommand = self.state_scroll.set, width = 400, height = 400)
@@ -76,10 +83,9 @@ class GUI():
         
         # Log (Right side)
         self.log = tk.Frame(self.win_frame, width = 400, height = 516 / 2, highlightbackground = '#595959', highlightthickness=2)   
-        self.log_label = tk.Label(self.log, text = 'Log Pannel', font = ("Helvetica", "12")) 
-        
+        self.log_label = tk.Label(self.log, text = 'Log Pannel', font = self.font_style1) 
         self.log_scroll = tk.Scrollbar(self.log, orient='vertical')
-        self.log_box = tk.Listbox(self.log, yscrollcommand = self.log_scroll.set, width = 400, height = 400)
+        self.log_box = tk.Listbox(self.log, yscrollcommand = self.log_scroll.set, width = 400, height = 400, font=self.font_style2)
         self.log_scroll.config(command=self.log_box.yview)
         
         # Start log
@@ -197,8 +203,8 @@ class GUI():
 
     # If reset button is clicked
     def reset_env(self, event = None):
-        self.env.Reset()
-        self.redrawWindow(self.env.Get_Obj())   
+        self.make_state_info(self.env.Reset())  
+        self.redrawWindow(self.env.Get_Obj()) 
         self.append_log('Reset Simulation') 
     
     # Append Log
@@ -230,26 +236,26 @@ class GUI():
         if event.widget.get() == "DQN Learned model":
             self.env.running_opt = 3
             
-    def make_state_info(self, state_list):
+    def make_state_info(self, info_list):
         self.state_box.delete(0, self.state_box.size())
         state_text = ""
         state_text += "                    AGV1    AGV2    AGV3"
         self.update_state(state_text)
         state_text = ""
         state_text += "Position: "
-        state_text += str(state_list[0][0]) + " " + str(state_list[0][1]) + " " + str(state_list[0][2])
+        state_text += str(info_list[0][0]) + " " + str(info_list[0][1]) + " " + str(info_list[0][2])
         self.update_state(state_text)
         state_text = ""
         state_text += "Load:          "
-        state_text += str(state_list[2][0]) + "  " + str(state_list[2][1]) + "  " + str(state_list[2][1])
+        state_text += str(info_list[2][0]) + "  " + str(info_list[2][1]) + "  " + str(info_list[2][1])
         self.update_state(state_text)
         state_text = ""
         state_text += "Machines: "
-        state_text += str(state_list[3][0]) + "  " + str(state_list[3][1]) + "  " + str(state_list[3][1])
+        state_text += str(bool(info_list[3][0])) + "  " + str(bool(info_list[3][1])) + "  " + str(bool(info_list[3][1]))
         self.update_state(state_text)
         state_text = ""
         state_text += "Products:        "
-        state_text += str(self.env.Get_product()[0]) + "        " + str(self.env.Get_product()[1]) + "        " + str(self.env.Get_product()[2]) 
+        state_text += str(bool(self.env.Get_product()[0])) + "        " + str(bool(self.env.Get_product()[1])) + "        " + str(bool(self.env.Get_product()[2]))
         self.update_state(state_text)
         state_text = ""
         self.update_state(state_text)

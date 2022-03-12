@@ -1,4 +1,5 @@
 from decimal import DecimalTuple
+from distutils.log import info
 import pygame
 from OBJ import obj
 from AGV import AGV
@@ -102,6 +103,7 @@ class ENV():
             agvs_pos.append(self.agv2.dqn_move(action[4:8], agvs_pos))
             agvs_pos.append(self.agv3.dqn_move(action[8:12], agvs_pos))
             info_list.append(agvs_pos)
+            # Update Reward
             reward = self.get_reward()
         
         if self.running_opt == 3:
@@ -173,6 +175,7 @@ class ENV():
             machines_product.append(1)
         info_list.append(machines_product)
         
+        # Training parts
         if self.running_opt == 2:
             self.update_state()
             next_state = self.state_list
@@ -200,11 +203,13 @@ class ENV():
                 return False       
         
         return info_list
-        
+    
+    # Get the list of object
     def Get_Obj(self):
         return [self.agv1, self.agv2, self.agv3, self.buffer1, self.buffer2, 
                 self.buffer3, self.machine1, self.machine2, self.machine3] 
-        
+    
+    # Reset the environment
     def Reset(self):
         self.agv1 = AGV((10, 5), self.RED)
         self.agv2 = AGV((10, 10), self.GREEN)
@@ -221,11 +226,21 @@ class ENV():
         self.state_list = []
         self.whole_reward = 0
         self.prev_products_num = 0
-        return
+        
+        # Use for GUI
+        info_list = []
+        info_list.append([self.agv1.head.pos, self.agv2.head.pos, self.agv3.head.pos])
+        info_list.append([self.Out_Of_Factory(self.agv1.head.pos), self.Out_Of_Factory(self.agv2.head.pos), 
+                        self.Out_Of_Factory(self.agv3.head.pos)])
+        info_list.append([self.agv1.load, self.agv2.load, self.agv3.load])
+        info_list.append([0, 0, 0])
+        return info_list
     
+    # Get product list of machines
     def Get_product(self):
         return self.products_num
     
+    # Get whole products / running time
     def Get_throuput(self):
         product_num = 0
         for product in self.products_num:
@@ -277,6 +292,7 @@ class ENV():
                 self.state_list[x] = 1
         return
     
+    # Update reward for training
     def get_reward(self):
         # Reward 1
         # reward = self.products_num[0] + self.products_num[1] + self.products_num[2] - self.prev_products_num
