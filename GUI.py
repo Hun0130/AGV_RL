@@ -8,6 +8,7 @@ from tkinter import ttk
 import os
 import platform
 from tkinter import font
+import threading
 
 class GUI():
     def __init__(self, env):
@@ -20,7 +21,9 @@ class GUI():
         self.root.title("AGV Reinforeced Learning Simulator")
         self.root.resizable(False, False)
         self.root.configure(background='#000000')
-        self.running = False
+        self.running_check = False
+        
+        self.training_check = False
         
         # font option
         self.font_style1 = font.Font(family="fixed", size = 14)
@@ -176,33 +179,52 @@ class GUI():
         # pygame.display.update()
         pygame.display.flip()
         return
-    
+
     def run_env(self, event = None):
-        if self.running:
+        if self.running_check:
             self.make_state_info(self.env.Run())
             self.redrawWindow(self.env.Get_Obj())
-        # After 1 second, call run_env again (create a recursive loop)
+        # After <speed_var> second, call run_env again (create a recursive loop)
         self.root.after(self.speed_var.get(), self.run_env)
-        
+    
+    # Training without GUI update
     def training(self, event = None):
-        self.running = False
+        self.running_check = False
+        self.training_check = True
         self.env.running_opt = 2
+        thread = threading.Thread(target = self.training_loop)
+        thread_daemon = True
+        thread.start()
+            
+    def training_loop(self):
         while True:
-            if not self.env.Run():
+            result = self.env.Run()
+            if result == False:
                 break
+            elif type(result) == list:
+                continue
+            else:
+                self.append_log(result)
+        self.training_check = False
     
     # If start button is clicked
     def start_env(self, event = None):
-        self.running = True
+        if self.training_check:
+            return
+        self.running_check = True
         self.append_log('Start Simulation')
     
     # If stop button is clicked
     def stop_env(self, event = None):
-        self.running = False
+        if self.training_check:
+            return
+        self.running_check = False
         self.append_log('Stop Simulation')
 
     # If reset button is clicked
     def reset_env(self, event = None):
+        if self.training_check:
+            return
         self.make_state_info(self.env.Reset())  
         self.redrawWindow(self.env.Get_Obj()) 
         self.append_log('Reset Simulation') 

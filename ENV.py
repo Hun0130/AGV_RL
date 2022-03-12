@@ -195,13 +195,14 @@ class ENV():
                 if(self.whole_reward > self.high_reward):
                     self.high_reward = self.whole_reward
                     self.trainer.model.save()
-                print('Game:', self.n_game,'Score:', self.whole_reward,'Record:', self.high_reward)
+                train_result = 'Game: ' + str(self.n_game) + ' Score: ' + str(self.whole_reward) + ' Record: ' + str(self.high_reward)
                 self.Reset()
-                self.update_state()       
+                self.update_state()   
+                return train_result    
                 
             if self.n_game > self.game_num:
-                return False       
-        
+                return False     
+
         return info_list
     
     # Get the list of object
