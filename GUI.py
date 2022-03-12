@@ -44,6 +44,10 @@ class GUI():
                                     bg = '#728f96', activebackground='#d45f5f')
         self.Clear_button.bind("<Button-1>", self.clear_log)
         
+        self.Learn_button = tk.Button(self.menu, text = "Text Mode", font = ("Helvetica", "12"), 
+                                    bg = '#728f96', activebackground='#d45f5f')
+        self.Learn_button.bind("<Button-1>", self.training)
+        
         # Setting(Middle side)
         self.setting = tk.Frame(self.win_frame, width = 200, height = 516, highlightbackground = '#595959', highlightthickness=2)   
         self.setting_label = tk.Label(self.setting, text = 'Setting Pannel', font = ("Helvetica", "12"))   
@@ -98,6 +102,7 @@ class GUI():
         self.Stop_button.pack(ipadx = 60)
         self.Reset_button.pack(ipadx = 60)
         self.Clear_button.pack(ipadx= 60)
+        self.Learn_button.pack(ipadx=60)
         
         self.setting.pack(side = "left", anchor = 'n')
         self.setting_label.pack()
@@ -172,6 +177,13 @@ class GUI():
             self.redrawWindow(self.env.Get_Obj())
         # After 1 second, call run_env again (create a recursive loop)
         self.root.after(self.speed_var.get(), self.run_env)
+        
+    def training(self, event = None):
+        self.running = False
+        self.env.running_opt = 2
+        while True:
+            if not self.env.Run():
+                break
     
     # If start button is clicked
     def start_env(self, event = None):

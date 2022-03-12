@@ -43,7 +43,7 @@ class ENV():
         self.update_state()
         
         # DQN trainer
-        self.trainer = DQN.QTrainer(DQN.Qnet(len(self.state_list), 256, 12), 0.001, 0.8)
+        self.trainer = DQN.QTrainer(DQN.Qnet(len(self.state_list), 256, 12), 0.001, 0.9)
         
         # episodes
         self.episode = 1000
@@ -59,6 +59,9 @@ class ENV():
         
         # whole_reward
         self.whole_reward = 0
+        
+        # game_num
+        self.game_num = 1000
 
     # Check the AGV is out of factory of not
     def Out_Of_Factory(self, pos):
@@ -99,6 +102,7 @@ class ENV():
             agvs_pos.append(self.agv2.dqn_move(action[4:8], agvs_pos))
             agvs_pos.append(self.agv3.dqn_move(action[8:12], agvs_pos))
             info_list.append(agvs_pos)
+            reward = self.get_reward()
         
         if self.running_opt == 3:
             pass
@@ -172,13 +176,13 @@ class ENV():
         if self.running_opt == 2:
             self.update_state()
             next_state = self.state_list
-            reward = self.get_reward()
             
             # train short memory
             self.trainer.train_short_memory(state, action, reward, next_state, False)
             
             # memorize
             self.trainer.remember(state, action, reward, next_state, False)
+            # self.trainer.train_long_memory()
             
             if self.time > self.episode:
                 self.time = 1
@@ -190,7 +194,10 @@ class ENV():
                     self.trainer.model.save()
                 print('Game:', self.n_game,'Score:', self.whole_reward,'Record:', self.high_reward)
                 self.Reset()
-                self.update_state()                  
+                self.update_state()       
+                
+            if self.n_game > self.game_num:
+                return False       
         
         return info_list
         
@@ -212,6 +219,8 @@ class ENV():
         self.machine3 = obj((17, 15), color = self.BLUE)
         self.products_num = [0, 0, 0]
         self.state_list = []
+        self.whole_reward = 0
+        self.prev_products_num = 0
         return
     
     def Get_product(self):
@@ -269,8 +278,31 @@ class ENV():
         return
     
     def get_reward(self):
-        reward = self.products_num[0] + self.products_num[1] + self.products_num[2] - self.prev_products_num
-        self.prev_products_num = self.products_num[0] + self.products_num[1] + self.products_num[2] 
+        # Reward 1
+        # reward = self.products_num[0] + self.products_num[1] + self.products_num[2] - self.prev_products_num
+        # self.prev_products_num = self.products_num[0] + self.products_num[1] + self.products_num[2] 
+        # self.whole_reward += reward
+        
+        # Reward 2
+        reward = 0
+        if (self.agv1.head.pos == self.buffer1.pos) and (self.agv1.load == 0):
+            reward += 1
+        if (self.agv2.head.pos == self.buffer2.pos) and (self.agv2.load == 0):
+            reward += 1
+        if (self.agv3.head.pos == self.buffer3.pos) and (self.agv3.load == 0):
+            reward += 1            
+        if (self.agv1.head.pos == self.machine1.pos) and (self.agv1.load == 1):
+            reward += 1
+        if (self.agv2.head.pos == self.machine2.pos) and (self.agv2.load == 1):
+            reward += 1
+        if (self.agv3.head.pos == self.machine3.pos) and (self.agv3.load == 1):
+            reward += 1
+        # if self.Out_Of_Factory(self.agv1.head.pos):
+        #     reward -= 1
+        # if self.Out_Of_Factory(self.agv2.head.pos):
+        #     reward -= 1
+        # if self.Out_Of_Factory(self.agv3.head.pos):
+        #     reward -= 1
         self.whole_reward += reward
         return reward
         

@@ -111,12 +111,12 @@ class QTrainer():
     
     def get_action(self, state):
         # random moves: tradeoff explotation / exploitation
-        self.epsilon = 80 - self.n_game
+        self.epsilon = 1100 - self.n_game
         
         final_move = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
         result = []
         # Act randomly
-        if(random.randint(0, 200) < self.epsilon):
+        if(random.randint(0, 1200) < self.epsilon):
             for agv_num in range(len(final_move)):
                 move = random.randint(0, 3)
                 final_move[agv_num][move] = 1
