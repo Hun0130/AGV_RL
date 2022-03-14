@@ -123,7 +123,7 @@ class AGV():
         return self.head.pos
     
     def dqn_move(self, move, others_pos_list = []):        
-        keys = 1
+        keys = 0
         if move == [1, 0, 0, 0]:
             keys = 1
         if move == [0, 1, 0, 0]:

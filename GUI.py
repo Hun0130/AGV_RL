@@ -3,12 +3,15 @@ from select import select
 import AGV
 
 import pygame
+import pyglet
 import tkinter as tk
 from tkinter import ttk
 import os
 import platform
 from tkinter import font
 import threading
+from tkinter import filedialog
+import torch
 
 class GUI():
     def __init__(self, env):
@@ -16,18 +19,27 @@ class GUI():
         self.width = 500
         self.height = 500
         
+        # Load simulation environment
+        self.env = env
+        
         # Main window
         self.root = tk.Tk()  
+        pyglet.font.add_file('D2Coding.ttf')
         self.root.title("AGV Reinforeced Learning Simulator")
         self.root.resizable(False, False)
         self.root.configure(background='#000000')
-        self.running_check = False
         
+        # IF GUI mode is running
+        self.running_check = False
+        # IF text training model is running
         self.training_check = False
+        # IF trained model is saved
+        self.saving_check = False
         
         # font option
-        self.font_style1 = font.Font(family="fixed", size = 14)
-        self.font_style2 = font.Font(family="fixed", size = 10)
+        self.root.option_add('*Dialog.msg.font', 'D2Coding Nerd Font 12')
+        self.font_style1 = ('D2Coding Nerd Font', 14)
+        self.font_style2 = ('D2Coding Nerd Font', 10)
         
         # Large Frame
         self.win_frame = tk.Frame(self.root, width = self.width + 300, height = self.height, 
@@ -56,6 +68,10 @@ class GUI():
                                     bg = '#728f96', activebackground='#d45f5f')
         self.Learn_button.bind("<Button-1>", self.training)
         
+        self.Load_Model_button = tk.Button(self.menu, text = "Load Model", font = self.font_style1, 
+                                    bg = '#728f96', activebackground='#d45f5f')
+        self.Load_Model_button.bind("<Button-1>", self.load)
+        
         # Setting(Middle side)
         self.setting = tk.Frame(self.win_frame, width = 200, height = 516, highlightbackground = '#595959', highlightthickness=2)   
         self.setting_label = tk.Label(self.setting, text = 'Setting Pannel', font = self.font_style1)   
@@ -75,6 +91,46 @@ class GUI():
                                     font=self.font_style2)
         self.algorithm_box.current(0)
         self.algorithm_box.bind("<<ComboboxSelected>>", self.algorithm_changed)
+        
+        # Training setting
+        self.parameter_label = tk.Label(self.setting, text='Hyper Parameters', font = self.font_style2)
+        
+        self.lr_var = tk.StringVar()
+        self.lr_label = tk.Label(self.setting, text='Learning Rate [0 1)', font = self.font_style2)
+        self.lr_entry = tk.Entry(self.setting, width = 30, bg = '#728f96', font=self.font_style2, textvariable=self.lr_var)
+        self.lr_entry.insert(0, str(self.env.trainer.learning_rate))
+        self.lr_var.trace('w', self.change_lr)
+        
+        self.gamma_var = tk.StringVar()
+        self.gamma_label = tk.Label(self.setting, text='Gamma Rate (0 1)', font = self.font_style2)
+        self.gamma_entry = tk.Entry(self.setting, width = 30, bg = '#728f96', font=self.font_style2, textvariable=self.gamma_var)
+        self.gamma_entry.insert(0, str(self.env.trainer.gamma))
+        self.gamma_var.trace('w', self.change_gamma)
+        
+        self.episode_var = tk.StringVar()
+        self.episode_label = tk.Label(self.setting, text='Episode', font = self.font_style2)
+        self.episode_entry = tk.Entry(self.setting, width = 30, bg = '#728f96', font=self.font_style2, textvariable=self.episode_var)
+        self.episode_entry.insert(0, str(self.env.trainer.MAX_MEMORY))
+        self.episode_var.trace('w', self.change_episode)
+        
+        self.epoch_var = tk.StringVar()
+        self.epoch_label = tk.Label(self.setting, text='Epoch', font = self.font_style2)
+        self.epoch_entry = tk.Entry(self.setting, width = 30, bg = '#728f96', font=self.font_style2, textvariable=self.epoch_var)
+        self.epoch_entry.insert(0, str(self.env.trainer.epoch))
+        self.epoch_var.trace('w', self.change_epoch)
+        
+        self.batch_size_var = tk.StringVar()
+        self.batch_size_label = tk.Label(self.setting, text='Batch Size', font = self.font_style2)
+        self.batch_size_entry = tk.Entry(self.setting, width = 30, bg = '#728f96', font=self.font_style2, textvariable=self.batch_size_var)
+        self.batch_size_entry.insert(0, str(self.env.trainer.BATCH_SIZE))
+        self.batch_size_var.trace('w', self.change_batch_size)
+        
+        self.step_interval_var = tk.StringVar()
+        self.step_interval_label = tk.Label(self.setting, text='Step Interval', font = self.font_style2)
+        self.step_interval_entry = tk.Entry(self.setting, width = 30, bg = '#728f96', font=self.font_style2, textvariable=self.step_interval_var)
+        self.step_interval_entry.insert(0, str(self.env.training_interval))
+        self.step_interval_var.trace('w', self.change_step_interval)
+        
         
         # State (Right side)
         self.state = tk.Frame(self.win_frame, width = 400, height = 516 / 2, highlightbackground = '#595959', highlightthickness=2)   
@@ -112,6 +168,7 @@ class GUI():
         self.Reset_button.pack(ipadx = 60)
         self.Clear_button.pack(ipadx= 60)
         self.Learn_button.pack(ipadx=60)
+        self.Load_Model_button.pack(ipadx=60)
         
         self.setting.pack(side = "left", anchor = 'n')
         self.setting_label.pack()
@@ -119,6 +176,19 @@ class GUI():
         self.speed_scale.pack()
         self.algorithm_label.pack()
         self.algorithm_box.pack()
+        self.parameter_label.pack(pady= 3)
+        self.lr_label.pack()
+        self.lr_entry.pack()
+        self.gamma_label.pack()
+        self.gamma_entry.pack()
+        self.episode_label.pack()
+        self.episode_entry.pack()
+        self.epoch_label.pack()
+        self.epoch_entry.pack()
+        self.batch_size_label.pack()
+        self.batch_size_entry.pack()
+        self.step_interval_label.pack()
+        self.step_interval_entry.pack()
         self.setting.pack_propagate(0)
         
         self.state.pack()
@@ -143,9 +213,6 @@ class GUI():
             os.environ['SDL_VIDEODRIVER'] = 'x11'
 
         self.root.update_idletasks()
-        
-        # Load simulation environment
-        self.env = env
         
         # Start pygame
         pygame.init()
@@ -180,9 +247,13 @@ class GUI():
         pygame.display.flip()
         return
 
+    # Run environment
     def run_env(self, event = None):
         if self.running_check:
-            self.make_state_info(self.env.Run())
+            run = self.env.Run()
+            if run == False:
+                self.running_check = False
+            self.make_state_info(run)
             self.redrawWindow(self.env.Get_Obj())
         # After <speed_var> second, call run_env again (create a recursive loop)
         self.root.after(self.speed_var.get(), self.run_env)
@@ -192,13 +263,17 @@ class GUI():
         self.running_check = False
         self.training_check = True
         self.env.running_opt = 2
-        thread = threading.Thread(target = self.training_loop)
-        thread_daemon = True
-        thread.start()
-            
-    def training_loop(self):
+        self.thread = threading.Thread(target = self.training_loop)
+        self.thread_daemon = True
+        self.thread.start()
+    
+    # Training with no - GUI
+    def training_loop(self, event = None):
+        self.append_log(('learning_rate: ' + str(self.env.trainer.learning_rate) + ' gamma: ' + str(self.env.trainer.gamma)))
+        self.append_log('episode: ' + str(self.env.trainer.MAX_MEMORY) + ' epoch: ' + str(self.env.trainer.epoch))
+        self.append_log('batch size: ' + str(self.env.trainer.BATCH_SIZE) + ' step interval : ' + str(self.env.training_interval))
         while True:
-            result = self.env.Run()
+            result = self.env.Run(mode = 1)
             if result == False:
                 break
             elif type(result) == list:
@@ -206,6 +281,75 @@ class GUI():
             else:
                 self.append_log(result)
         self.training_check = False
+        self.env.running_opt = 0
+        self.reset_env()
+        
+    # change learning rate value
+    def change_lr(self, *args):
+        if self.training_check:
+            return
+        if self.running_check:
+            return
+        try:
+            self.env.trainer.learning_rate = float(self.lr_var.get())
+        except:
+            return
+        
+    # change gamma value
+    def change_gamma(self, *args):
+        if self.training_check:
+            return
+        if self.running_check:
+            
+            return
+        try:
+            self.env.trainer.gamma = float(self.gamma_var.get())
+        except:
+            return
+        
+    # change episode value
+    def change_episode(self, *args):
+        if self.training_check:
+            return
+        if self.running_check:
+            return
+        try:
+            self.env.trainer.MAX_MEMORY = int(self.episode_var.get())
+        except:
+            return
+        
+    # change epoch value
+    def change_epoch(self, *args):
+        if self.training_check:
+            return
+        if self.running_check:
+            return
+        try:
+            self.env.trainer.epoch = int(self.epoch_var.get())
+        except:
+            return
+        
+    # change batch_size value
+    def change_batch_size(self, *args):
+        if self.training_check:
+            return
+        if self.running_check:
+            return
+        try:
+            self.env.trainer.BATCH_SIZE = int(self.batch_size_var.get())
+        except:
+            return
+        
+    # change step interval value
+    def change_step_interval(self, *args):
+        if self.training_check:
+            return
+        if self.running_check:
+            return
+        try:
+            self.env.training_interval = int(self.step_interval_var.get())
+        except:
+            return
     
     # If start button is clicked
     def start_env(self, event = None):
@@ -255,34 +399,40 @@ class GUI():
             self.env.running_opt = 1
         if event.widget.get() == "Deep Q Network":
             self.env.running_opt = 2
+            self.append_log(('learning_rate: ' + str(self.env.trainer.learning_rate) + ' gamma: ' + str(self.env.trainer.gamma)))
+            self.append_log('episode: ' + str(self.env.trainer.MAX_MEMORY) + ' epoch: ' + str(self.env.trainer.epoch))
+            self.append_log('batch size: ' + str(self.env.trainer.BATCH_SIZE) + ' step interval : ' + str(self.env.training_interval))
         if event.widget.get() == "DQN Learned model":
-            self.env.running_opt = 3
+            if self.saving_check == True:
+                self.env.running_opt = 3
+            else:
+                self.append_log("Please Load Model First!")
+                
             
     def make_state_info(self, info_list):
+        if info_list == False:
+            return
+        
+        if len(info_list) == 2:
+            self.append_log(info_list[1])
+            info_list = info_list[0]
+
         self.state_box.delete(0, self.state_box.size())
-        state_text = ""
-        state_text += "                    AGV1    AGV2    AGV3"
-        self.update_state(state_text)
-        state_text = ""
-        state_text += "Position: "
-        state_text += str(info_list[0][0]) + " " + str(info_list[0][1]) + " " + str(info_list[0][2])
-        self.update_state(state_text)
-        state_text = ""
-        state_text += "Load:          "
-        state_text += str(info_list[2][0]) + "  " + str(info_list[2][1]) + "  " + str(info_list[2][1])
-        self.update_state(state_text)
-        state_text = ""
-        state_text += "Machines: "
-        state_text += str(bool(info_list[3][0])) + "  " + str(bool(info_list[3][1])) + "  " + str(bool(info_list[3][1]))
-        self.update_state(state_text)
-        state_text = ""
-        state_text += "Products:        "
-        state_text += str(bool(self.env.Get_product()[0])) + "        " + str(bool(self.env.Get_product()[1])) + "        " + str(bool(self.env.Get_product()[2]))
-        self.update_state(state_text)
-        state_text = ""
-        self.update_state(state_text)
-        state_text = ""
-        state_text += "Throuput(products/time): "
-        state_text += str(self.env.Get_throuput())
-        self.update_state(state_text)
+        self.update_state('{:<15} {:<10} {:<10} {:<10}'.format('Machine:', 'AGV1', 'AGV2', 'AGV3'))
+        self.update_state('{:<15} {:<10} {:<10} {:<10}'.format('Position:', str(info_list[0][0]), str(info_list[0][1]), str(info_list[0][2])))
+        self.update_state('{:<15} {:<10} {:<10} {:<10}'.format('Load Up:', str(bool(info_list[2][0])), str(bool(info_list[2][1])), str(bool(info_list[2][2]))))
+        self.update_state('{:<15} {:<10} {:<10} {:<10}'.format('Load Down:', str(bool(info_list[3][0])), str(bool(info_list[3][1])), str(bool(info_list[3][1]))))
+        self.update_state('{:<15} {:<10} {:<10} {:<10}'.format('Products:', str(self.env.products_num[0]), str(self.env.products_num[1]), str(self.env.products_num[2])))
+        self.update_state("")
+        self.update_state('{:<20}{:^10}'.format("Throughput(products/time):", str(self.env.Get_throuput())))
         return 
+
+    def load(self, event = None):
+        filename = filedialog.askopenfilename(initialdir="DQN_save/", title = "Select saved model",
+                                        filetypes=(("pth files", "*.pth"),
+                                        ("all files", "*.*")))
+        try: 
+            self.env.trainer.model = torch.load(filename)
+            self.saving_check = True
+        except:
+            self.saving_check = False
