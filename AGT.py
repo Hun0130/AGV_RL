@@ -3,7 +3,7 @@ import random
 
 class agt():
     
-    def __init__(self, env):
+    def __init__(self, env, episode, epoch, learning_rate, gamma, batch_size, training_interval, model_name):
         # Running Option : 0 = random, 1 = deterministic, 2 = DQN, 3 = DQN Learned model
         self.running_opt = 0
 
@@ -12,32 +12,14 @@ class agt():
 
         # highest reward
         self.high_reward = 0
-
-        # previous product number
-        self.prev_products_num = 0
-
-        # ================ Training parameters ===================
-        # episode : the number of step of 1 episode
-        self.episode = 1500
-
-        # epoch : whole number of epoch with training
-        self.epoch = 1000
-
-        # learning rate
-        self.learning_rate = 0.001
-
-        # Gamma
-        self.gamma = 0.9
-
-        # batch_size
-        self.batch_size = 30
-
-        # training interval
-        self.training_interval = 30
-
-        # model name to be saved
-        self.model_name = ""
-        # ================ Training parameters ===================
+        
+        self.episode = episode
+        self.epoch = epoch
+        self.learning_rate = learning_rate
+        self.gamma = gamma
+        self.batch_size = batch_size
+        self.training_interval = training_interval
+        self.model_name = model_name
 
         # DQN trainer
         self.trainer = DQN.QTrainer(DQN.Qnet(len(env.state_list), 256, 12), self.learning_rate, self.gamma, self.epoch, self.episode, self.batch_size)

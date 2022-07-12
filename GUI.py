@@ -252,11 +252,11 @@ class GUI():
     def run_env(self, event = None):
         if self.running_check:
             self.env.update_state()
-            run = self.env.step(self.agent.action(self.env.Get_AGV(), self.env.Get_Buffer(), 
-                                                self.env.Get_Machine(), self.env.state_list), self.agent.episode)
+            state, reward, done, info_list = self.env.step(self.agent.action(self.env.Get_AGV(), self.env.Get_Buffer(), 
+                                                self.env.Get_Machine(), self.env.state_list))
             if self.env.time > self.agent.episode:
                 self.running_check = False
-            self.make_state_info(run)
+            self.make_state_info(info_list)
             self.redrawWindow(self.env.Get_Obj())
         # After <speed_var> second, call run_env again (create a recursive loop)
         self.root.after(self.speed_var.get(), self.run_env)
@@ -295,6 +295,7 @@ class GUI():
             return
         try:
             self.agent.trainer.learning_rate = float(self.lr_var.get())
+            self.agent.learning_rate = float(self.lr_var.get())
         except:
             return
         
@@ -307,6 +308,7 @@ class GUI():
             return
         try:
             self.agent.trainer.gamma = float(self.gamma_var.get())
+            self.agent.gamma = float(self.gamma_var.get())
         except:
             return
         
@@ -318,6 +320,7 @@ class GUI():
             return
         try:
             self.agent.trainer.MAX_MEMORY = int(self.episode_var.get())
+            self.agent.MAX_MEMORY = int(self.episode_var.get())
         except:
             return
         
@@ -329,6 +332,7 @@ class GUI():
             return
         try:
             self.agent.trainer.epoch = int(self.epoch_var.get())
+            self.agent.epoch = int(self.epoch_var.get())
         except:
             return
         
@@ -340,6 +344,7 @@ class GUI():
             return
         try:
             self.agent.trainer.BATCH_SIZE = int(self.batch_size_var.get())
+            self.agent.BATCH_SIZE = int(self.batch_size_var.get())
         except:
             return
         
@@ -408,6 +413,7 @@ class GUI():
         if event.widget.get() == "DQN Learned model":
             if self.saving_check == True:
                 self.agent.running_opt = 3
+                
             else:
                 self.append_log("Please Load Model First!")
                 

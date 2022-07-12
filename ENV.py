@@ -25,7 +25,7 @@ class env():
     MACHINE2_POS = (12, 10)
     MACHINE3_POS = (12, 15)
     
-    def __init__(self):
+    def __init__(self, episode):
         # AGV objects
         self.agv1 = AGV(self.AGV1_POS, self.RED)
         self.agv2 = AGV(self.AGV2_POS, self.GREEN)
@@ -59,24 +59,27 @@ class env():
         
         # Time
         self.time = 0
+        
+        # Episode
+        self.episode = episode
+        
+        # Done
+        self.done = False
 
     # Check the AGV is out of factory or not
     def Out_Of_Factory(self, pos):
         return (pos[0] >= 20 or pos[0] < 0 or pos[1] >= 20 or pos[1] < 0)
 
     # 1 Step of ENV
-    def step(self, action, episode):
+    def step(self, action):
         # the number of steps
         self.time += 1
         
-        # # end of episode
-        # if self.time == episode:
-        #     self.time = 1
-        #     self.Reset()
-        #     return False
-        
         # Use for GUI
         info_list = []
+        
+        if self.time == self.episode:
+            self.done = True
         
         agvs_pos = []
         agvs_pos.append(self.agv1.move(action[0:4]))
@@ -150,7 +153,8 @@ class env():
             machines_product.append(1)
         info_list.append(machines_product)
         
-        return info_list
+        self.update_state()
+        return self.state_list, self.get_reward(), self.done, info_list
     
     # Get the list of object
     def Get_Obj(self):

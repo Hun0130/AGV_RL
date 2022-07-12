@@ -15,17 +15,10 @@ class trainer():
         if opt == 1:
             action = agent.trainer.get_action_test(state)
         # 1 Step of ENV
-        info_list = env.step(action, agent.episode)
-        
-        # Update Reward
-        reward = env.get_reward()
-        
-        # Update Next State
-        env.update_state()
-        next_state = env.state_list
+        next_state, reward, done, info_list = env.step(action)
         
         # memorize
-        agent.trainer.remember(state, action, reward, next_state, False)
+        agent.trainer.remember(state, action, reward, next_state, done)
         
         if env.time % agent.training_interval == 0:
             agent.trainer.train_long_memory()
