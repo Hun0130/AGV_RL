@@ -1,25 +1,26 @@
-from decimal import DecimalTuple
 from distutils.log import info
-import pygame
 from OBJ import obj
 from AGV import AGV
-import DQN
-import numpy as np
 import os
 
-class ENV():
+# Environment class
+class env():
+    # Color of AGVs
     RED = (255, 0, 0)
     GREEN = (0, 255, 0)
     BLUE = (0, 0, 255)
     
+    # Position of AGVs
     AGV1_POS = (10, 5)
     AGV2_POS = (10, 10)
     AGV3_POS = (10, 15)
     
+    # Position of Buffers
     BUFFER1_POS = (8, 5)
     BUFFER2_POS = (8, 10)
     BUFFER3_POS = (8, 15)
     
+    # Position of Machines
     MACHINE1_POS = (12, 5)
     MACHINE2_POS = (12, 10)
     MACHINE3_POS = (12, 15)
@@ -40,119 +41,48 @@ class ENV():
         self.machine2 = obj(self.MACHINE2_POS, color = self.GREEN)
         self.machine3 = obj(self.MACHINE3_POS, color = self.BLUE)
         
-        # All products produced
-        self.products_num = [0, 0, 0]
-        
-        # Running Option : 0 = random, 1 = deterministic, 2 = DQN, 3 = DQN Learned model
-        self.running_opt = 0
-        
-        # Time
-        self.time = 0
-        
         # Use for training
         self.state_list = []
         self.update_state()
         
-        # n_game
-        self.n_game = 0
+        # All products produced
+        self.products_num = [0, 0, 0]
         
         # highest reward
         self.high_reward = 0
-        
+
         # previous product number
         self.prev_products_num = 0
-        
+
         # whole_reward
         self.whole_reward = 0
         
-        # ================ Training parameters ===================
-        # episode : the number of step of 1 episode
-        self.episode = 1500
-        
-        # epoch : whole number of epoch with training
-        self.epoch = 1000
-        
-        # learning rate
-        self.learning_rate = 0.001
-        
-        # Gamma
-        self.gamma = 0.9
-        
-        # batch_size
-        self.batch_size = 30
-        
-        # training interval
-        self.training_interval = 30
-        
-        # model name to be saved
-        self.model_name = ""
-        # ================ Training parameters ===================
-        
-        # DQN trainer
-        self.trainer = DQN.QTrainer(DQN.Qnet(len(self.state_list), 256, 12), self.learning_rate, self.gamma, self.epoch, self.episode, self.batch_size)
+        # Time
+        self.time = 0
 
-    # Check the AGV is out of factory of not
+    # Check the AGV is out of factory or not
     def Out_Of_Factory(self, pos):
         return (pos[0] >= 20 or pos[0] < 0 or pos[1] >= 20 or pos[1] < 0)
 
-    # Single Process Step
-    def Run(self, mode = 0):  
+    # 1 Step of ENV
+    def step(self, action, episode):
+        # the number of steps
         self.time += 1
+        
+        # # end of episode
+        # if self.time == episode:
+        #     self.time = 1
+        #     self.Reset()
+        #     return False
+        
         # Use for GUI
         info_list = []
         
-        # Random Move
-        if self.running_opt == 0:
-            if self.time == self.episode:
-                self.time = 1
-                self.Reset()
-                return False
-            
-            agvs_pos = []
-            agvs_pos.append(self.agv1.random_move(agvs_pos))
-            agvs_pos.append(self.agv2.random_move(agvs_pos))
-            agvs_pos.append(self.agv3.random_move(agvs_pos))
-            info_list.append(agvs_pos)
-        
-        # Deterministic Move
-        if self.running_opt == 1:
-            if self.time == self.episode:
-                self.time = 1
-                self.Reset()
-                return False
-        
-            buffers_pos = [self.buffer1.pos, self.buffer2.pos, self.buffer3.pos]
-            machines_pos = [self.machine1.pos, self.machine2.pos, self.machine3.pos]
-            agvs_pos = []
-            agvs_pos.append(self.agv1.deterministic_move(agvs_pos, buffers_pos[0], machines_pos[0]))
-            agvs_pos.append(self.agv2.deterministic_move(agvs_pos, buffers_pos[1], machines_pos[1]))
-            agvs_pos.append(self.agv3.deterministic_move(agvs_pos, buffers_pos[2], machines_pos[2]))
-            info_list.append(agvs_pos)
-        
-        # Deep Q Network Learning
-        if self.running_opt == 2:
-            self.update_state()
-            state = self.state_list
-            action = self.trainer.get_action(self.state_list)
-            
-            agvs_pos = []
-            agvs_pos.append(self.agv1.dqn_move(action[0:4], agvs_pos))
-            agvs_pos.append(self.agv2.dqn_move(action[4:8], agvs_pos))
-            agvs_pos.append(self.agv3.dqn_move(action[8:12], agvs_pos))
-            info_list.append(agvs_pos)
-            # Update Reward
-            reward = self.get_reward()
-        
-        if self.running_opt == 3:
-            self.update_state()
-            state = self.state_list
-            action = self.trainer.get_action_test(self.state_list)
-            
-            agvs_pos = []
-            agvs_pos.append(self.agv1.dqn_move(action[0:4], agvs_pos))
-            agvs_pos.append(self.agv2.dqn_move(action[4:8], agvs_pos))
-            agvs_pos.append(self.agv3.dqn_move(action[8:12], agvs_pos))
-            info_list.append(agvs_pos)
+        agvs_pos = []
+        agvs_pos.append(self.agv1.move(action[0:4]))
+        agvs_pos.append(self.agv2.move(action[4:8]))
+        agvs_pos.append(self.agv3.move(action[8:12]))
+        info_list.append(agvs_pos)
         
         # AGV's position is available or not
         agvs_out = []
@@ -220,44 +150,6 @@ class ENV():
             machines_product.append(1)
         info_list.append(machines_product)
         
-        # Training parts
-        if self.running_opt == 2:
-            self.update_state()
-            next_state = self.state_list
-            
-            # train short memory
-            # self.trainer.train_short_memory(state, action, reward, next_state, False)
-            
-            # memorize
-            self.trainer.remember(state, action, reward, next_state, False)
-            
-            if self.time % self.training_interval == 0:
-                self.trainer.train_long_memory()
-            
-            if self.time > self.episode:
-                self.time = 1
-                self.n_game += 1
-                self.trainer.n_game += 1
-                # new High score 
-                if(self.whole_reward > self.high_reward):
-                    self.high_reward = self.whole_reward
-                    if os.path.isfile(('DQN_save/' + self.model_name)):
-                        os.remove(('DQN_save/' + self.model_name))
-                    self.model_name = 'model_' + str(self.n_game) + '.pth'
-                    self.trainer.model.save(self.model_name)
-                train_result = self.Get_training_record()
-                self.Reset()
-                self.update_state()
-                if mode == 1:
-                    return train_result  
-                return [info_list, train_result]
-                
-                
-            if self.n_game > self.trainer.epoch:
-                self.time = 1
-                self.Reset()
-                return False     
-
         return info_list
     
     # Get the list of object
@@ -265,14 +157,14 @@ class ENV():
         return [self.agv1, self.agv2, self.agv3, self.buffer1, self.buffer2, 
                 self.buffer3, self.machine1, self.machine2, self.machine3] 
         
-    # Get training result
-    def Get_training_record(self):
-        record = ""
-        record += 'Game: ' + str(self.n_game)
-        record += ' Score: ' + str(self.whole_reward)
-        record += ' Record: ' + str(self.high_reward)
-        record += ' Random: ' + str(round(((self.trainer.epsilon / (self.trainer.epoch)) * 100), 1)) + '%'
-        return record
+    def Get_AGV(self):
+        return [self.agv1, self.agv2, self.agv3]
+    
+    def Get_Buffer(self):
+        return [self.buffer1, self.buffer2, self.buffer3]
+    
+    def Get_Machine(self):
+        return [self.machine1, self.machine2, self.machine3] 
     
     # Reset the environment
     def Reset(self):
@@ -295,7 +187,6 @@ class ENV():
         self.time = 1
         
         # Use for training
-        self.state_list = []
         self.update_state()
         
         # previous product number

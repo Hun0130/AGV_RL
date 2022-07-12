@@ -1,6 +1,5 @@
 from distutils.log import fatal
 from select import select
-import AGV
 
 import pygame
 import pyglet
@@ -14,13 +13,15 @@ from tkinter import filedialog
 import torch
 
 class GUI():
-    def __init__(self, env):
+    def __init__(self, env, agent, trainer):
         self.rows = 20
         self.width = 500
         self.height = 500
         
         # Load simulation environment
         self.env = env
+        self.agent = agent
+        self.trainer = trainer
         
         # Main window
         self.root = tk.Tk()  
@@ -98,37 +99,37 @@ class GUI():
         self.lr_var = tk.StringVar()
         self.lr_label = tk.Label(self.setting, text='Learning Rate [0 1)', font = self.font_style2)
         self.lr_entry = tk.Entry(self.setting, width = 30, bg = '#728f96', font=self.font_style2, textvariable=self.lr_var)
-        self.lr_entry.insert(0, str(self.env.trainer.learning_rate))
+        self.lr_entry.insert(0, str(self.agent.trainer.learning_rate))
         self.lr_var.trace('w', self.change_lr)
         
         self.gamma_var = tk.StringVar()
         self.gamma_label = tk.Label(self.setting, text='Gamma Rate (0 1)', font = self.font_style2)
         self.gamma_entry = tk.Entry(self.setting, width = 30, bg = '#728f96', font=self.font_style2, textvariable=self.gamma_var)
-        self.gamma_entry.insert(0, str(self.env.trainer.gamma))
+        self.gamma_entry.insert(0, str(self.agent.trainer.gamma))
         self.gamma_var.trace('w', self.change_gamma)
         
         self.episode_var = tk.StringVar()
         self.episode_label = tk.Label(self.setting, text='Episode', font = self.font_style2)
         self.episode_entry = tk.Entry(self.setting, width = 30, bg = '#728f96', font=self.font_style2, textvariable=self.episode_var)
-        self.episode_entry.insert(0, str(self.env.trainer.MAX_MEMORY))
+        self.episode_entry.insert(0, str(self.agent.trainer.MAX_MEMORY))
         self.episode_var.trace('w', self.change_episode)
         
         self.epoch_var = tk.StringVar()
         self.epoch_label = tk.Label(self.setting, text='Epoch', font = self.font_style2)
         self.epoch_entry = tk.Entry(self.setting, width = 30, bg = '#728f96', font=self.font_style2, textvariable=self.epoch_var)
-        self.epoch_entry.insert(0, str(self.env.trainer.epoch))
+        self.epoch_entry.insert(0, str(self.agent.trainer.epoch))
         self.epoch_var.trace('w', self.change_epoch)
         
         self.batch_size_var = tk.StringVar()
         self.batch_size_label = tk.Label(self.setting, text='Batch Size', font = self.font_style2)
         self.batch_size_entry = tk.Entry(self.setting, width = 30, bg = '#728f96', font=self.font_style2, textvariable=self.batch_size_var)
-        self.batch_size_entry.insert(0, str(self.env.trainer.BATCH_SIZE))
+        self.batch_size_entry.insert(0, str(self.agent.trainer.BATCH_SIZE))
         self.batch_size_var.trace('w', self.change_batch_size)
         
         self.step_interval_var = tk.StringVar()
         self.step_interval_label = tk.Label(self.setting, text='Step Interval', font = self.font_style2)
         self.step_interval_entry = tk.Entry(self.setting, width = 30, bg = '#728f96', font=self.font_style2, textvariable=self.step_interval_var)
-        self.step_interval_entry.insert(0, str(self.env.training_interval))
+        self.step_interval_entry.insert(0, str(self.agent.training_interval))
         self.step_interval_var.trace('w', self.change_step_interval)
         
         
@@ -250,8 +251,10 @@ class GUI():
     # Run environment
     def run_env(self, event = None):
         if self.running_check:
-            run = self.env.Run()
-            if run == False:
+            self.env.update_state()
+            run = self.env.step(self.agent.action(self.env.Get_AGV(), self.env.Get_Buffer(), 
+                                                self.env.Get_Machine(), self.env.state_list), self.agent.episode)
+            if self.env.time > self.agent.episode:
                 self.running_check = False
             self.make_state_info(run)
             self.redrawWindow(self.env.Get_Obj())
@@ -262,18 +265,18 @@ class GUI():
     def training(self, event = None):
         self.running_check = False
         self.training_check = True
-        self.env.running_opt = 2
+        self.agent.running_opt = 2
         self.thread = threading.Thread(target = self.training_loop)
         self.thread_daemon = True
         self.thread.start()
     
-    # Training with no - GUI
+    # Training with no GUI
     def training_loop(self, event = None):
-        self.append_log(('learning_rate: ' + str(self.env.trainer.learning_rate) + ' gamma: ' + str(self.env.trainer.gamma)))
-        self.append_log('episode: ' + str(self.env.trainer.MAX_MEMORY) + ' epoch: ' + str(self.env.trainer.epoch))
-        self.append_log('batch size: ' + str(self.env.trainer.BATCH_SIZE) + ' step interval : ' + str(self.env.training_interval))
+        self.append_log(('learning_rate: ' + str(self.agent.trainer.learning_rate) + ' gamma: ' + str(self.agent.trainer.gamma)))
+        self.append_log('episode: ' + str(self.agent.trainer.MAX_MEMORY) + ' epoch: ' + str(self.agent.trainer.epoch))
+        self.append_log('batch size: ' + str(self.agent.trainer.BATCH_SIZE) + ' step interval : ' + str(self.agent.training_interval))
         while True:
-            result = self.env.Run(mode = 1)
+            result = self.trainer.run_train(self.env, self.agent, opt = 0, text_mode = 1)
             if result == False:
                 break
             elif type(result) == list:
@@ -281,8 +284,8 @@ class GUI():
             else:
                 self.append_log(result)
         self.training_check = False
-        self.env.running_opt = 0
-        self.reset_env()
+        self.agent.running_opt = 0
+        # self.reset_env()
         
     # change learning rate value
     def change_lr(self, *args):
@@ -291,7 +294,7 @@ class GUI():
         if self.running_check:
             return
         try:
-            self.env.trainer.learning_rate = float(self.lr_var.get())
+            self.agent.trainer.learning_rate = float(self.lr_var.get())
         except:
             return
         
@@ -303,7 +306,7 @@ class GUI():
             
             return
         try:
-            self.env.trainer.gamma = float(self.gamma_var.get())
+            self.agent.trainer.gamma = float(self.gamma_var.get())
         except:
             return
         
@@ -314,7 +317,7 @@ class GUI():
         if self.running_check:
             return
         try:
-            self.env.trainer.MAX_MEMORY = int(self.episode_var.get())
+            self.agent.trainer.MAX_MEMORY = int(self.episode_var.get())
         except:
             return
         
@@ -325,7 +328,7 @@ class GUI():
         if self.running_check:
             return
         try:
-            self.env.trainer.epoch = int(self.epoch_var.get())
+            self.agent.trainer.epoch = int(self.epoch_var.get())
         except:
             return
         
@@ -336,7 +339,7 @@ class GUI():
         if self.running_check:
             return
         try:
-            self.env.trainer.BATCH_SIZE = int(self.batch_size_var.get())
+            self.agent.trainer.BATCH_SIZE = int(self.batch_size_var.get())
         except:
             return
         
@@ -347,7 +350,7 @@ class GUI():
         if self.running_check:
             return
         try:
-            self.env.training_interval = int(self.step_interval_var.get())
+            self.agent.training_interval = int(self.step_interval_var.get())
         except:
             return
     
@@ -394,17 +397,17 @@ class GUI():
     def algorithm_changed(self, event):
         self.append_log("Changed trajectory algorithm to {}".format(event.widget.get()))
         if event.widget.get() == "Radom Move":
-            self.env.running_opt = 0
+            self.agent.running_opt = 0
         if event.widget.get() == "Deterministic":
-            self.env.running_opt = 1
+            self.agent.running_opt = 1
         if event.widget.get() == "Deep Q Network":
-            self.env.running_opt = 2
-            self.append_log(('learning_rate: ' + str(self.env.trainer.learning_rate) + ' gamma: ' + str(self.env.trainer.gamma)))
-            self.append_log('episode: ' + str(self.env.trainer.MAX_MEMORY) + ' epoch: ' + str(self.env.trainer.epoch))
-            self.append_log('batch size: ' + str(self.env.trainer.BATCH_SIZE) + ' step interval : ' + str(self.env.training_interval))
+            self.agent.running_opt = 2
+            self.append_log(('learning_rate: ' + str(self.agent.trainer.learning_rate) + ' gamma: ' + str(self.agent.trainer.gamma)))
+            self.append_log('episode: ' + str(self.agent.trainer.MAX_MEMORY) + ' epoch: ' + str(self.agent.trainer.epoch))
+            self.append_log('batch size: ' + str(self.agent.trainer.BATCH_SIZE) + ' step interval : ' + str(self.agent.training_interval))
         if event.widget.get() == "DQN Learned model":
             if self.saving_check == True:
-                self.env.running_opt = 3
+                self.agent.running_opt = 3
             else:
                 self.append_log("Please Load Model First!")
                 
@@ -432,7 +435,7 @@ class GUI():
                                         filetypes=(("pth files", "*.pth"),
                                         ("all files", "*.*")))
         try: 
-            self.env.trainer.model = torch.load(filename)
+            self.agent.trainer.model = torch.load(filename)
             self.saving_check = True
         except:
             self.saving_check = False
